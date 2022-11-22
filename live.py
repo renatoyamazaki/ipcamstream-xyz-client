@@ -30,12 +30,12 @@ def getHostPort (rtsp):
     return r[0], r[1]
 
 
-def streamIpcam (ipcamId, host, port, rtsp):
+def streamIpcam (ipcamId, host, port, rtsp, time_limit):
     while True:
         cam_on = checkHostPort(host, port)
         if (cam_on):
             streamUrl = getStreamUrl(ipcamId)
-            cmd = "ffmpeg -t 39600 -nostdin -stimeout 5000000 -i " + rtsp + " -vcodec copy -acodec copy -f flv " + streamUrl + " > /dev/null 2>&1 "
+            cmd = "ffmpeg -t " + time_limit + " -nostdin -stimeout 5000000 -i " + rtsp + " -vcodec copy -acodec copy -f flv " + streamUrl + " > /dev/null 2>&1 "
             p = Popen(cmd, shell=True)
             print(f'started stream from {host}:{port} {rtsp}')
             print(f'stream url "{streamUrl}"')
@@ -48,8 +48,8 @@ def streamIpcam (ipcamId, host, port, rtsp):
 def getStreamUrl (ipcamId):
     api_url = BASE_URI + "/api/stream?id=" + ipcamId
     headers = {"Content-Type":"application/json", "Authorization": "Bearer " + BEARER }
-    with LOCK:
-        response = requests.get(api_url, headers=headers)
+#    with LOCK:
+    response = requests.get(api_url, headers=headers)
     res = response.json()
     return res["streamUrl"]
 
@@ -79,8 +79,9 @@ def main():
     for ipcam in ipcams:
         ipCamId = ipcam["id"]
         rtsp = ipcam["rtsp"]
+        time_limit = str(ipcam["time_limit"])
         host, port = getHostPort(rtsp)
-        p = Process(target=streamIpcam, args=(ipCamId, host, port,rtsp,))
+        p = Process(target=streamIpcam, args=(ipCamId, host, port, rtsp, time_limit, ))
         jobs.append(p)
         p.start()
 
