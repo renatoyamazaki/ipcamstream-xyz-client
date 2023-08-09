@@ -35,7 +35,7 @@ def streamIpcam (ipcamId, host, port, rtsp, time_limit):
         cam_on = checkHostPort(host, port)
         if (cam_on):
             streamUrl = getStreamUrl(ipcamId)
-            cmd = "ffmpeg -t " + time_limit + " -nostdin -stimeout 5000000 -i " + rtsp + " -vcodec copy -acodec copy -f flv " + streamUrl + " > /dev/null 2>&1 "
+            cmd = "ffmpeg -t " + time_limit + " -nostdin -timeout 5000000 -i " + rtsp + " -vcodec copy -acodec copy -f flv " + streamUrl + " > /dev/null 2>&1 "
             p = Popen(cmd, shell=True)
             print(f'started stream from {host}:{port} {rtsp}')
             print(f'stream url "{streamUrl}"')
