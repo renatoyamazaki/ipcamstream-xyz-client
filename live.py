@@ -38,10 +38,11 @@ def streamIpcam (ipcamId, host, port, rtsp, time_limit):
 #            parts = streamUrl.rsplit('/', 1)
 #            streamUrlHls = parts[0] + 'stream.m3u8'
 #            cmd = "ffmpeg -timeout 5 -t " + time_limit + " -i " + rtsp + " -c:v copy -f hls -method PUT -hls_time 1 -hls_playlist_type event -http_persistent 1 '" + streamUrlHls + "' > /dev/null 2>&1"
-            cmd = "ffmpeg -t " + time_limit + " -nostdin -timeout 5000000 -i " + rtsp + " -vcodec copy -acodec copy -f flv " + streamUrl + " > /dev/null 2>&1 "
+            cmd = "ffmpeg -t " + time_limit + " -nostdin -timeout 5000000 -i " + rtsp + " -vcodec copy -acodec copy -f flv " + streamUrl + " > config/ffmpeg.log 2>&1 "
             p = Popen(cmd, shell=True)
             print(f'started stream from {host}:{port} {rtsp}')
-            print(f'stream url "{streamUrlHls}"')
+#            print(f'stream url "{streamUrlHls}"')
+            print(f'stream url "{streamUrl}"')
         else:
             print(f'Ipcam not up, sleeping 10 seconds...')
             p = Popen("sleep 10", shell = True)
