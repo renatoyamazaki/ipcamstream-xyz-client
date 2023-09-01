@@ -1,0 +1,18 @@
+---
+version: "3"
+
+services:
+  motion:
+    image: ryama/stream-yt-client
+    container_name: stream-yt-client
+    networks: 
+      - proxy
+    volumes:
+      - ./config:/app/config
+      - ./bin:/app/bin
+    environment:
+      TZ: 'America/Sao_Paulo'
+    restart: unless-stopped
+networks:
+  proxy:
+    external: true

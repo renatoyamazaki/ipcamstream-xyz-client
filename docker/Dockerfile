@@ -15,6 +15,7 @@ RUN git clone https://github.com/renatoyamazaki/stream-yt-client && \
     mv stream-yt-client /app
 
 VOLUME /app/config
+VOLUME /app/bin
 
 WORKDIR /app
-CMD [ "/app/live.py" ]
+CMD [ "/app/bin/live.py" ]
