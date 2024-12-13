@@ -11,8 +11,8 @@ RUN apt-get update -qqy && \
     apt-get --quiet --yes clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN git clone https://github.com/renatoyamazaki/stream-yt-client && \
-    mv stream-yt-client /app
+RUN git clone https://github.com/renatoyamazaki/ipcamstream-xyz-client && \
+    mv ipcamstream-xyz-client /app
 
 VOLUME /app/config
 VOLUME /app/bin

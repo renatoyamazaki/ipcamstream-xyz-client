@@ -3,8 +3,8 @@ version: "3"
 
 services:
   motion:
-    image: ryama/stream-yt-client
-    container_name: stream-yt-client
+    image: ipcamstream-xyz-client
+    container_name: ipcamstream-xyz-client
     networks: 
       - proxy
     volumes:
