@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import socket
 import requests
 import logging
@@ -11,15 +12,37 @@ from dotenv import load_dotenv
 import time
 import signal
 import sys
+from datetime import datetime
 
-# Initialize logger
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] - %(message)s",
-    handlers=[logging.StreamHandler()]
-)
+def setup_logger(cameraname):
+    """Set up logger with file handler for each camera."""
+    # Create logs directory if it doesn't exist
+    os.makedirs("logs", exist_ok=True)
+    
+    today = datetime.now().strftime("%Y-%m-%d")
+    log_filename = os.path.join("logs", f"{cameraname}_{today}.log")
+    
+    logger = logging.getLogger(cameraname)
+    logger.setLevel(logging.INFO)
+    
+    # Remove existing handlers to avoid duplicates
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+    
+    # Create file handler only
+    file_handler = logging.FileHandler(log_filename)
+    file_handler.setLevel(logging.INFO)
+    
+    # Create formatter and add it to the handler
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s")
+    file_handler.setFormatter(formatter)
+    
+    # Add the handler to the logger
+    logger.addHandler(file_handler)
+    
+    return logger
 
-def checkHostPort(ip, port, timeout=5):
+def checkHostPort(ip, port, logger, timeout=5):
     """Check if the host and port are open."""
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(timeout)
@@ -28,7 +51,7 @@ def checkHostPort(ip, port, timeout=5):
         s.shutdown(socket.SHUT_RDWR)
         return True
     except (socket.timeout, socket.error) as e:
-        logging.error(f"Error connecting to {ip}:{port} - {e}")
+        logger.error(f"Error connecting to {ip}:{port} - {e}")
         return False
     finally:
         s.close()
@@ -42,7 +65,7 @@ def getHostPort(rtsp):
         r = s.split('/')[2].split('@')[1].split(':')
     return r[0], r[1]
 
-def check_codec(rtsp_url):
+def check_codec(rtsp_url, logger):
     """Check the codec of the video stream."""
     try:
         result = subprocess.run(
@@ -54,42 +77,45 @@ def check_codec(rtsp_url):
         codec = result.stdout.strip()
         return codec
     except Exception as e:
-        logging.error(f"Error checking codec for {rtsp_url}: {e}")
+        logger.error(f"Error checking codec for {rtsp_url}: {e}")
         return None
 
 def streamIpcam(ipcamId, host, port, rtsp, time_limit):
     """Stream the IP camera's RTSP stream."""
+    # Create logger for this camera
+    logger = setup_logger(str(ipcamId))
+    
     while True:
-        cam_on = checkHostPort(host, port)
+        cam_on = checkHostPort(host, port, logger)
         if cam_on:
-            codec = check_codec(rtsp)
+            codec = check_codec(rtsp, logger)
             if not codec:
-                logging.warning(f"Could not determine codec for {rtsp}, stopping.")
+                logger.warning(f"Could not determine codec for {rtsp}, stopping.")
                 break
 
-            streamUrl = getStreamUrl(ipcamId, codec)
+            streamUrl = getStreamUrl(ipcamId, codec, logger)
             if codec == "hevc":
                 streamUrlHls = f"{streamUrl.rsplit('/', 1)[0]}/stream.m3u8"
                 cmd = f"ffmpeg -timeout 5 -t {time_limit} -i {rtsp} -c:v copy -f hls -method PUT -hls_time 1 -hls_playlist_type event -http_persistent 1 '{streamUrlHls}' > /dev/null 2>&1"
-                logging.info(f"Stream URL (HLS): {streamUrlHls}")
+                logger.info(f"Stream URL (HLS): {streamUrlHls}")
             elif codec == "h264":
                 cmd = f"ffmpeg -t {time_limit} -nostdin -timeout 5000000 -i {rtsp} -vcodec copy -acodec copy -f flv {streamUrl} > /dev/null 2>&1"
-                logging.info(f"Stream URL: {streamUrl}")
+                logger.info(f"Stream URL: {streamUrl}")
             else:
-                logging.error(f"Unsupported codec: {codec} for {rtsp}, stopping.")
+                logger.error(f"Unsupported codec: {codec} for {rtsp}, stopping.")
                 break
 
             try:
                 p = Popen(cmd, shell=True)
-                logging.info(f"Started streaming {rtsp} to {streamUrl}")
+                logger.info(f"Started streaming {rtsp} to {streamUrl}")
                 p.wait()
             except subprocess.CalledProcessError as e:
-                logging.error(f"Failed to start streaming: {e}")
+                logger.error(f"Failed to start streaming: {e}")
         else:
-            logging.warning(f"IP camera {host}:{port} is down. Retrying in 30 seconds...")
+            logger.warning(f"IP camera {host}:{port} is down. Retrying in 30 seconds...")
             time.sleep(30)
 
-def getStreamUrl(ipcamId, codec):
+def getStreamUrl(ipcamId, codec, logger):
     """Get the stream URL from the server."""
     api_url = BASE_URI + f"/api/stream?id={ipcamId}&codec={codec}"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {BEARER}"}
@@ -98,7 +124,7 @@ def getStreamUrl(ipcamId, codec):
         response.raise_for_status()
         return response.json()["streamUrl"]
     except requests.exceptions.RequestException as e:
-        logging.error(f"Error fetching stream URL for {ipcamId}: {e}")
+        logger.error(f"Error fetching stream URL for {ipcamId}: {e}")
         return None
 
 def listIpcam():
@@ -130,11 +156,16 @@ def shutdown_handler(signal, frame):
 
 def main():
     """Main entry point of the script."""
+    # Disable root logger's console output
+    logging.basicConfig(level=logging.WARNING, handlers=[])
+    
     loadEnv()
     signal.signal(signal.SIGINT, shutdown_handler)
     ipcams = listIpcam()
     if not ipcams:
-        logging.warning("No IP cameras found.")
+        # Create a temporary logger for the initial message
+        temp_logger = setup_logger("main")
+        temp_logger.warning("No IP cameras found.")
         return
 
     jobs = []
