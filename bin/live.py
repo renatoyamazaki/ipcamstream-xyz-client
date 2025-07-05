@@ -90,8 +90,9 @@ def streamIpcam(ipcamId, host, port, rtsp, time_limit):
         if cam_on:
             codec = check_codec(rtsp, logger)
             if not codec:
-                logger.warning(f"Could not determine codec for {rtsp}, stopping.")
-                break
+                logger.warning(f"Could not determine codec for {rtsp}, waiting 30 seconds.")
+                time.sleep(30)
+                continue
 
             streamUrl = getStreamUrl(ipcamId, codec, logger)
             if codec == "hevc":
