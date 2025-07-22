@@ -3,7 +3,7 @@ version: "3"
 
 services:
   motion:
-    image: ipcamstream-xyz-client
+    image: ghcr.io/renatoyamazaki/syc:latest
     container_name: ipcamstream-xyz-client
     networks: 
       - proxy
